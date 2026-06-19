@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bolão da Família Dias</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1f232c; --border:#2a2f3a;
+    --text:#f0f2f5; --muted:#9aa3b2; --green:#1ea672; --green-d:#0c5c3f;
+    --red:#e0524f; --amber:#e0a32a; --blue:#3a8de0; --gold:#d4af37;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:12px;
+    max-width:760px; margin:0 auto;
+  }
+  h1{font-size:22px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .tabs{display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap;}
+  .tab{
+    padding:8px 14px; border-radius:8px; background:var(--card2);
+    border:1px solid var(--border); cursor:pointer; font-size:14px; color:var(--muted);
+  }
+  .tab.active{background:var(--blue); color:#fff; border-color:var(--blue);}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px; margin-bottom:14px;
+  }
+  .card h2{font-size:16px; margin:0 0 12px; color:var(--text);}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px; margin-top:10px;}
+  input,select{
+    width:100%; padding:9px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--card2); color:var(--text); font-size:14px;
+  }
+  input::placeholder{color:#6b7280;}
+  .row{display:flex; gap:10px; flex-wrap:wrap;}
+  .row>div{flex:1; min-width:130px;}
+  button{
+    background:var(--blue); color:#fff; border:none; border-radius:8px;
+    padding:10px 16px; font-size:14px; cursor:pointer; margin-top:14px; font-weight:600;
+  }
+  button:hover{opacity:.9;}
+  button.secondary{background:var(--card2); border:1px solid var(--border); color:var(--text);}
+  button.danger{background:var(--red);}
+  .game-card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:14px 16px; margin-bottom:12px;
+  }
+  .game-head{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;}
+  .game-title{font-weight:600; font-size:15px;}
+  .game-tag{font-size:11px; color:var(--muted);}
+  .badge{font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600;}
+  .badge.pendente{background:#3a3010; color:var(--amber);}
+  .badge.encerrado{background:#0c2a1f; color:var(--green);}
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;}
+  th,td{text-align:left; padding:7px 6px; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:500; font-size:12px;}
+  .pago-yes{color:var(--green); font-weight:600;}
+  .pago-no{color:var(--red); font-weight:600;}
+  .acerto{color:var(--green); font-weight:700;}
+  .erro{color:var(--muted);}
+  .small-btn{
+    padding:4px 9px; font-size:12px; margin:0; border-radius:6px;
+  }
+  .empty{color:var(--muted); font-size:13px; text-align:center; padding:30px 0;}
+  .ranking-row{display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--border);}
+  .ranking-pos{width:28px; font-weight:700; color:var(--muted);}
+  .ranking-name{flex:1; font-size:14px;}
+  .ranking-score{font-weight:700; color:var(--green);}
+  .ouro{color:var(--gold);}
+  .prata{color:#c0c0c0;}
+  .bronze{color:#cd7f32;}
+  select{appearance:none;}
+  .toast{
+    position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    background:var(--green-d); color:#fff; padding:8px 16px; border-radius:8px;
+    font-size:13px; opacity:0; transition:opacity .3s; pointer-events:none;
+  }
+  .toast.show{opacity:1;}
+  .stats{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+  .stat{flex:1; min-width:90px; background:var(--card2); border-radius:8px; padding:10px; text-align:center;}
+  .stat .v{font-size:18px; font-weight:700;}
+  .stat .l{font-size:11px; color:var(--muted);}
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center;
+    z-index:999; opacity:0; pointer-events:none; transition:opacity .2s;
+    padding:16px;
+  }
+  .modal-overlay.show{opacity:1; pointer-events:auto;}
+  .modal-box{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:26px 24px; max-width:340px; text-align:center;
+    transform:scale(.9); transition:transform .2s;
+  }
+  .modal-overlay.show .modal-box{transform:scale(1);}
+  .modal-emoji{font-size:38px; margin-bottom:10px;}
+  .modal-title{font-size:17px; font-weight:700; margin-bottom:6px;}
+  .modal-text{font-size:14px; color:var(--muted); margin-bottom:18px; line-height:1.5;}
+  .modal-box button{width:100%; margin-top:0;}
+  @media (max-width:520px){
+    h1{font-size:19px;}
+    .stats{gap:6px;}
+    .stat{min-width:0; padding:8px 6px;}
+    .stat .v{font-size:15px;}
+    .stat .l{font-size:10px;}
+    table{font-size:12px;}
+    th,td{padding:6px 4px;}
+    .game-card, .card{padding:12px;}
+    .tab{flex:1; text-align:center; padding:8px 6px;}
+    .small-btn{padding:4px 7px; font-size:11px;}
+    input,select{font-size:16px;}
+  }
+</style>
+</head>
+<body>
+
+<h1>🏆 Bolão da Família Dias</h1>
+<div class="sub" id="subtitle">Carregando dados...</div>
+<div style="background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:18px; font-size:14px;">
+  💰 Chave pix para pagamento: <strong>(62) 982390172</strong>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="jogos">Jogos</div>
+  <div class="tab" data-tab="novo-jogo">+ Novo jogo</div>
+  <div class="tab" data-tab="ranking">Ranking</div>
+</div>
+
+<div id="tab-jogos"></div>
+
+<div id="tab-novo-jogo" style="display:none;">
+  <div class="card">
+    <h2>Cadastrar novo jogo do Brasil</h2>
+    <label>Adversário</label>
+    <input id="ng-adversario" placeholder="Ex: Argentina">
+    <div class="row">
+      <div>
+        <label>Data</label>
+        <input id="ng-data" type="date">
+      </div>
+      <div>
+        <label>Fase</label>
+        <input id="ng-fase" placeholder="Ex: Grupo A, Oitavas...">
+      </div>
+    </div>
+    <button onclick="criarJogo()">Criar jogo</button>
+  </div>
+</div>
+
+<div id="tab-ranking" style="display:none;">
+  <div class="card">
+    <h2>Ranking geral (jogos encerrados)</h2>
+    <div id="ranking-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-emoji" id="modal-emoji">🎉</div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-text" id="modal-text"></div>
+    <button onclick="closeModal()">Fechar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+let GAMES_KEY = 'bolao_copa_jogos';
+let games = [];
+
+// ===== CONFIGURAÇÃO DO SUPABASE =====
+const SUPABASE_URL = 'https://ffwyslidzbpnekvbttdx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmd3lzbGlkemJwbmVrdmJ0dGR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTU4MTQsImV4cCI6MjA5NzQ3MTgxNH0.rmTPkyxeABZdfMnTwtM0hPn_1-NMgP8boVA5CW53kyY';
+let db = null;
+try{
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}catch(e){
+  console.error('Erro ao criar client do Supabase:', e);
+}
+// =====================================
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function showModal(emoji, title, text){
+  document.getElementById('modal-emoji').textContent = emoji;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-text').textContent = text;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+async function loadGames(){
+  if(!db){
+    document.getElementById('subtitle').textContent = 'Erro: não foi possível conectar ao Supabase. Confira a URL e a chave no código.';
+    games = [];
+    render();
+    return;
+  }
+  try{
+    const { data, error } = await db
+      .from('bolao_dias')
+      .select('games')
+      .eq('id', 1)
+      .single();
+    if(error) throw error;
+    games = data && data.games ? data.games : [];
+  }catch(e){
+    console.error(e);
+    games = [];
+    document.getElementById('subtitle').textContent = 'Erro ao carregar dados: ' + (e.message || 'verifique a conexão com o Supabase.');
+  }
+  render();
+}
+
+async function saveGames(){
+  if(!db){
+    showToast('Sem conexão com o Supabase. Não foi possível salvar.');
+    return;
+  }
+  try{
+    const { error } = await db
+      .from('bolao_dias')
+      .update({ games, updated_at: new Date().toISOString() })
+      .eq('id', 1);
+    if(error) throw error;
+  }catch(e){
+    console.error(e);
+    showToast('Erro ao salvar. Tente de novo.');
+  }
+}
+
+function uid(){ return 'g' + Date.now() + Math.floor(Math.random()*1000); }
+function uidB(){ return 'b' + Date.now() + Math.floor(Math.random()*1000); }
+
+function fmtDate(d){
+  if(!d) return '';
+  const [y,m,day] = d.split('-');
+  return `${day}/${m}/${y}`;
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none');
+    document.getElementById('tab-'+tab.dataset.tab).style.display='block';
+    if(tab.dataset.tab === 'ranking') renderRanking();
+  });
+});
+
+async function criarJogo(){
+  const adversario = document.getElementById('ng-adversario').value.trim();
+  const data = document.getElementById('ng-data').value;
+  const fase = document.getElementById('ng-fase').value.trim();
+  if(!adversario){
+    showToast('Informe o adversário');
+    return;
+  }
+  const jogo = {
+    id: uid(),
+    adversario, data, fase,
+    status: 'pendente', // pendente | encerrado
+    placarBrasil: null,
+    placarAdversario: null,
+    apostas: []
+  };
+  games.unshift(jogo);
+  await saveGames();
+  document.getElementById('ng-adversario').value='';
+  document.getElementById('ng-data').value='';
+  document.getElementById('ng-fase').value='';
+  document.querySelector('.tab[data-tab="jogos"]').click();
+  render();
+  showToast('Jogo criado!');
+}
+
+async function adicionarAposta(jogoId){
+  const nome = document.getElementById('ap-nome-'+jogoId).value.trim();
+  const golBR = document.getElementById('ap-golbr-'+jogoId).value;
+  const golADV = document.getElementById('ap-goladv-'+jogoId).value;
+  const valor = document.getElementById('ap-valor-'+jogoId).value;
+  if(!nome || golBR === '' || golADV === ''){
+    showToast('Preencha nome e placar apostado');
+    return;
+  }
+  const jogo = games.find(g=>g.id===jogoId);
+  jogo.apostas.push({
+    id: uidB(),
+    nome,
+    golBR: parseInt(golBR),
+    golADV: parseInt(golADV),
+    valor: valor ? parseFloat(valor) : 0,
+    pago: false
+  });
+  await saveGames();
+  render();
+  showModal('🍀', 'Aposta feita!', `Boa sorte, ${nome}!`);
+}
+
+async function togglePago(jogoId, apostaId){
+  const jogo = games.find(g=>g.id===jogoId);
+  const ap = jogo.apostas.find(a=>a.id===apostaId);
+  ap.pago = !ap.pago;
+  await saveGames();
+  render();
+}
+
+async function removerAposta(jogoId, apostaId){
+  const jogo = games.find(g=>g.id===jogoId);
+  jogo.apostas = jogo.apostas.filter(a=>a.id!==apostaId);
+  await saveGames();
+  render();
+}
+
+async function removerJogo(jogoId){
+  if(!confirm('Remover este jogo e todas as apostas dele?')) return;
+  games = games.filter(g=>g.id!==jogoId);
+  await saveGames();
+  render();
+}
+
+async function encerrarJogo(jogoId){
+  const golBR = document.getElementById('res-golbr-'+jogoId).value;
+  const golADV = document.getElementById('res-goladv-'+jogoId).value;
+  if(golBR === '' || golADV === ''){
+    showToast('Informe o placar final');
+    return;
+  }
+  const jogo = games.find(g=>g.id===jogoId);
+  jogo.placarBrasil = parseInt(golBR);
+  jogo.placarAdversario = parseInt(golADV);
+  jogo.status = 'encerrado';
+  await saveGames();
+  render();
+
+  const vencedores = jogo.apostas.filter(a=>acertou(a,jogo));
+  const totalPremio = jogo.apostas.reduce((s,a)=>s + a.valor, 0);
+
+  if(vencedores.length === 0){
+    showModal('🥪', 'Ninguém acertou!', `Esse jogo ficou pro lanche do Lennon. Total: R$ ${totalPremio.toFixed(2)}.`);
+  } else if(vencedores.length === 1){
+    showModal('🏆', 'Parabéns!', `${vencedores[0].nome} acertou o placar e leva o prêmio de R$ ${totalPremio.toFixed(2)}!`);
+  } else {
+    const porPessoa = totalPremio / vencedores.length;
+    showModal('🏆', 'Temos vencedores!', `${vencedores.map(v=>v.nome).join(', ')} acertaram o placar! Prêmio de R$ ${totalPremio.toFixed(2)} dividido entre ${vencedores.length}: R$ ${porPessoa.toFixed(2)} cada.`);
+  }
+}
+
+async function reabrirJogo(jogoId){
+  const jogo = games.find(g=>g.id===jogoId);
+  jogo.status = 'pendente';
+  await saveGames();
+  render();
+}
+
+function acertou(aposta, jogo){
+  return aposta.golBR === jogo.placarBrasil && aposta.golADV === jogo.placarAdversario;
+}
+
+function render(){
+  document.getElementById('subtitle').textContent =
+    games.length ? `${games.length} jogo(s) cadastrado(s)` : 'Cadastre o primeiro jogo do Brasil para começar';
+
+  const wrap = document.getElementById('tab-jogos');
+  if(games.length === 0){
+    wrap.innerHTML = '<div class="empty">Nenhum jogo cadastrado ainda. Clique em "+ Novo jogo".</div>';
+    return;
+  }
+
+  wrap.innerHTML = games.map(jogo=>{
+    const pagaramVal = jogo.apostas.reduce((s,a)=>s + (a.pago? a.valor:0),0);
+    const totalVal = jogo.apostas.reduce((s,a)=>s + a.valor,0);
+
+    let apostasHtml = jogo.apostas.length ? `
+      <table>
+        <tr><th>Nome</th><th>Palpite</th><th>Valor</th><th>Pago</th>${jogo.status==='encerrado'?'<th>Resultado</th>':''}<th></th></tr>
+        ${jogo.apostas.map(a=>`
+          <tr>
+            <td>${escapeHtml(a.nome)}</td>
+            <td>${a.golBR} x ${a.golADV}</td>
+            <td>R$ ${a.valor.toFixed(2)}</td>
+            <td>
+              <span class="${a.pago?'pago-yes':'pago-no'}" style="cursor:pointer" onclick="togglePago('${jogo.id}','${a.id}')">
+                ${a.pago?'✔ Pago':'✘ Pendente'}
+              </span>
+            </td>
+            ${jogo.status==='encerrado' ? `<td>${acertou(a,jogo) ? '<span class="acerto">🎯 Acertou</span>' : '<span class="erro">—</span>'}</td>` : ''}
+            <td><button class="small-btn secondary" onclick="removerAposta('${jogo.id}','${a.id}')">Remover</button></td>
+          </tr>
+        `).join('')}
+      </table>
+    ` : '<div class="empty" style="padding:14px 0;">Nenhuma aposta ainda.</div>';
+
+    let resultadoBlock = '';
+    if(jogo.status === 'encerrado'){
+      const vencedores = jogo.apostas.filter(a=>acertou(a,jogo));
+      const totalPremio = jogo.apostas.reduce((s,a)=>s + a.valor, 0);
+      let premioHtml;
+      if(vencedores.length === 0){
+        premioHtml = `🥪 Nenhuma aposta acertou o placar exato. Esse valor fica pro lanche do Lennon (R$ ${totalPremio.toFixed(2)}).`;
+      } else if(vencedores.length === 1){
+        premioHtml = `🎯 Acertou o placar: <strong>${escapeHtml(vencedores[0].nome)}</strong> — leva o prêmio de R$ ${totalPremio.toFixed(2)}.`;
+      } else {
+        const porPessoa = totalPremio / vencedores.length;
+        premioHtml = `🎯 Acertaram o placar: <strong>${vencedores.map(v=>escapeHtml(v.nome)).join(', ')}</strong>. Prêmio de R$ ${totalPremio.toFixed(2)} dividido em ${vencedores.length}: <strong>R$ ${porPessoa.toFixed(2)} cada</strong>.`;
+      }
+      resultadoBlock = `
+        <div class="card" style="margin-top:10px; background:var(--card2);">
+          <strong>Placar final: Brasil ${jogo.placarBrasil} x ${jogo.placarAdversario} ${escapeHtml(jogo.adversario)}</strong>
+          <div style="margin-top:8px;">
+            ${premioHtml}
+          </div>
+          <button class="secondary" onclick="reabrirJogo('${jogo.id}')">Reabrir jogo (editar resultado)</button>
+        </div>
+      `;
+    } else {
+      resultadoBlock = `
+        <div class="card" style="margin-top:10px; background:var(--card2);">
+          <strong>Encerrar jogo / inserir resultado final</strong>
+          <div class="row" style="margin-top:8px;">
+            <div>
+              <label>Gols Brasil</label>
+              <input type="number" min="0" id="res-golbr-${jogo.id}">
+            </div>
+            <div>
+              <label>Gols ${escapeHtml(jogo.adversario)||'adversário'}</label>
+              <input type="number" min="0" id="res-goladv-${jogo.id}">
+            </div>
+          </div>
+          <button onclick="encerrarJogo('${jogo.id}')">Encerrar e calcular acertos</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="game-card">
+        <div class="game-head">
+          <div>
+            <div class="game-title">🇧🇷 Brasil x ${escapeHtml(jogo.adversario)||'?'}</div>
+            <div class="game-tag">${jogo.fase? escapeHtml(jogo.fase)+' · ':''}${jogo.data? fmtDate(jogo.data): 'sem data'}</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="badge ${jogo.status}">${jogo.status==='encerrado'?'Encerrado':'Pendente'}</span>
+            <button class="small-btn danger" onclick="removerJogo('${jogo.id}')">Excluir</button>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="v">${jogo.apostas.length}</div><div class="l">apostas</div></div>
+          <div class="stat"><div class="v">R$ ${totalVal.toFixed(2)}</div><div class="l">total apostado</div></div>
+          <div class="stat"><div class="v">R$ ${pagaramVal.toFixed(2)}</div><div class="l">já pago</div></div>
+        </div>
+
+        ${apostasHtml}
+
+        <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+          <strong style="font-size:13px;">Adicionar aposta</strong>
+          <div class="row" style="margin-top:6px;">
+            <div><label>Nome</label><input id="ap-nome-${jogo.id}" placeholder="Quem está apostando"></div>
+          </div>
+          <div class="row">
+            <div><label>Gols Brasil</label><input type="number" min="0" id="ap-golbr-${jogo.id}"></div>
+            <div><label>Gols adversário</label><input type="number" min="0" id="ap-goladv-${jogo.id}"></div>
+            <div><label>Valor (R$)</label><input type="number" min="0" step="0.01" id="ap-valor-${jogo.id}" placeholder="0.00"></div>
+          </div>
+          <button onclick="adicionarAposta('${jogo.id}')">Adicionar aposta</button>
+        </div>
+
+        ${resultadoBlock}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRanking(){
+  const encerrados = games.filter(g=>g.status==='encerrado');
+  const el = document.getElementById('ranking-content');
+  if(encerrados.length === 0){
+    el.innerHTML = '<div class="empty">Nenhum jogo encerrado ainda. O ranking aparece aqui conforme os jogos forem finalizados.</div>';
+    return;
+  }
+
+  const placar = {};
+  encerrados.forEach(jogo=>{
+    jogo.apostas.forEach(a=>{
+      if(!placar[a.nome]) placar[a.nome] = {acertos:0, total:0};
+      placar[a.nome].total++;
+      if(acertou(a, jogo)) placar[a.nome].acertos++;
+    });
+  });
+
+  const lista = Object.entries(placar)
+    .map(([nome, s])=>({nome, ...s}))
+    .sort((a,b)=> b.acertos - a.acertos || (b.acertos/b.total) - (a.acertos/a.total));
+
+  el.innerHTML = `
+    <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">${encerrados.length} jogo(s) encerrado(s) considerados</div>
+    ${lista.map((p,i)=>{
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`;
+      return `
+        <div class="ranking-row">
+          <div class="ranking-pos">${medal}</div>
+          <div class="ranking-name">${escapeHtml(p.nome)}</div>
+          <div class="ranking-score">${p.acertos}/${p.total} acertos</div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadGames();
+</script>
+</body>
+</html>
