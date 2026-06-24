@@ -320,7 +320,24 @@ async function loadGames(){
     document.getElementById('subtitle').textContent =
       'Erro ao carregar: ' + (e.message || e.code || 'verifique o Supabase');
   }
+  sincronizarUsuarios();
   render();
+}
+
+function sincronizarUsuarios(){
+  let alterou = false;
+  games.forEach(jogo => {
+    jogo.apostas.forEach(a => {
+      const nome = a.nome?.trim();
+      if(!nome) return;
+      const existe = usuarios.find(u => u.nome.toLowerCase() === nome.toLowerCase());
+      if(!existe){
+        usuarios.push({ id: 'u' + Date.now() + Math.random(), nome, dataCriacao: new Date().toISOString() });
+        alterou = true;
+      }
+    });
+  });
+  if(alterou) salvarDados();
 }
 
 async function salvarDados(){
@@ -707,28 +724,47 @@ function renderRanking(){
     return;
   }
 
-  const placar = {};
+  // Contagem em jogos encerrados (acertos) + total de participações em todos os jogos
+  const stats = {};
   encerrados.forEach(jogo=>{
     jogo.apostas.forEach(a=>{
-      if(!placar[a.nome]) placar[a.nome] = {acertos:0, total:0};
-      placar[a.nome].total++;
-      if(acertou(a, jogo)) placar[a.nome].acertos++;
+      const nome = a.nome?.trim(); if(!nome) return;
+      if(!stats[nome]) stats[nome] = {acertos:0, jogosEncerrados:0, totalJogos:0};
+      stats[nome].jogosEncerrados++;
+      if(acertou(a, jogo)) stats[nome].acertos++;
+    });
+  });
+  games.forEach(jogo=>{
+    jogo.apostas.forEach(a=>{
+      const nome = a.nome?.trim(); if(!nome) return;
+      if(!stats[nome]) stats[nome] = {acertos:0, jogosEncerrados:0, totalJogos:0};
+      stats[nome].totalJogos++;
     });
   });
 
-  const lista = Object.entries(placar)
+  const lista = Object.entries(stats)
     .map(([nome, s])=>({nome, ...s}))
-    .sort((a,b)=> b.acertos - a.acertos || (b.acertos/b.total) - (a.acertos/a.total));
+    .sort((a,b)=> b.acertos - a.acertos || b.jogosEncerrados - a.jogosEncerrados);
 
   el.innerHTML = `
-    <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">${encerrados.length} jogo(s) encerrado(s) considerados</div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">${encerrados.length} jogo(s) encerrado(s) · ${games.length} no total</div>
     ${lista.map((p,i)=>{
       const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}º`;
+      const pct = p.jogosEncerrados > 0 ? Math.round(p.acertos/p.jogosEncerrados*100) : 0;
+      const pendentes = p.totalJogos - p.jogosEncerrados;
       return `
-        <div class="ranking-row">
+        <div class="ranking-row" style="flex-wrap:wrap; gap:4px;">
           <div class="ranking-pos">${medal}</div>
-          <div class="ranking-name">${escapeHtml(p.nome)}</div>
-          <div class="ranking-score">${p.acertos}/${p.total} acertos</div>
+          <div class="ranking-name">
+            <div>${escapeHtml(p.nome)}</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+              ${p.totalJogos} jogo(s)${pendentes > 0 ? ` · ${pendentes} pendente(s)` : ''}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div class="ranking-score">${p.acertos}/${p.jogosEncerrados} acertos</div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">${pct}% de aproveitamento</div>
+          </div>
         </div>
       `;
     }).join('')}
