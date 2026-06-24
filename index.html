@@ -100,6 +100,26 @@
   .modal-title{font-size:17px; font-weight:700; margin-bottom:6px;}
   .modal-text{font-size:14px; color:var(--muted); margin-bottom:18px; line-height:1.5;}
   .modal-box button{width:100%; margin-top:0;}
+  .users-list{
+    display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;
+  }
+  .user-chip{
+    background:var(--card2); border:1px solid var(--border); padding:6px 10px;
+    border-radius:16px; font-size:12px; cursor:pointer; transition:all .2s;
+  }
+  .user-chip:hover{background:var(--blue); color:#fff; border-color:var(--blue);}
+  .user-chip.selected{background:var(--green); color:#fff; border-color:var(--green);}
+  .autocomplete-list{
+    position:absolute; background:var(--card); border:1px solid var(--border);
+    border-radius:8px; max-height:200px; overflow-y:auto; z-index:100;
+    width:calc(100% - 20px); margin-top:2px; display:none;
+  }
+  .autocomplete-item{
+    padding:8px 10px; cursor:pointer; font-size:13px; border-bottom:1px solid var(--border);
+  }
+  .autocomplete-item:hover{background:var(--card2);}
+  .autocomplete-item.selected{background:var(--blue); color:#fff;}
+  .input-wrapper{position:relative;}
   @media (max-width:520px){
     h1{font-size:19px;}
     .stats{gap:6px;}
@@ -127,6 +147,7 @@
   <div class="tab active" data-tab="jogos">Jogos</div>
   <div class="tab" data-tab="novo-jogo">+ Novo jogo</div>
   <div class="tab" data-tab="ranking">Ranking</div>
+  <div class="tab" data-tab="usuarios">👥 Usuários</div>
 </div>
 
 <div id="tab-jogos"></div>
@@ -146,6 +167,10 @@
         <input id="ng-fase" placeholder="Ex: Grupo A, Oitavas...">
       </div>
     </div>
+    <div style="margin-top:10px;">
+      <label>Participantes anteriores (clique para adicionar):</label>
+      <div class="users-list" id="usuarios-anteriores"></div>
+    </div>
     <button onclick="criarJogo()">Criar jogo</button>
   </div>
 </div>
@@ -154,6 +179,13 @@
   <div class="card">
     <h2>Ranking geral (jogos encerrados)</h2>
     <div id="ranking-content"></div>
+  </div>
+</div>
+
+<div id="tab-usuarios" style="display:none;">
+  <div class="card">
+    <h2>Gerenciar Usuários</h2>
+    <div id="usuarios-content"></div>
   </div>
 </div>
 
@@ -170,12 +202,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-let GAMES_KEY = 'bolao_copa_jogos';
 let games = [];
+let usuarios = [];
 
 // ===== CONFIGURAÇÃO DO SUPABASE =====
 const SUPABASE_URL = 'https://ffwyslidzbpnekvbttdx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmd3lzbGlkemJwbmVrdmJ0dGR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTU4MTQsImV4cCI6MjA5NzQ3MTgxNH0.rmTPkyxeABZdfMnTwtM0hPn_1-NMgP8boVA5CW53kyY';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmd3lzbGlkemJwbmVrdmJ0dGR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4OTU4MTQsImV4cCI6MjA5NzQ3MTgxNH0.rmT[...]
 let db = null;
 try{
   db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -202,30 +234,97 @@ function closeModal(){
   document.getElementById('modal-overlay').classList.remove('show');
 }
 
+// ===== GERENCIAMENTO DE USUÁRIOS =====
+function adicionarUsuario(nome) {
+  if (!nome.trim()) return;
+  const nomeLimpo = nome.trim();
+  if (!usuarios.find(u => u.nome.toLowerCase() === nomeLimpo.toLowerCase())) {
+    usuarios.push({
+      id: 'u' + Date.now(),
+      nome: nomeLimpo,
+      dataCriacao: new Date().toISOString()
+    });
+    salvarDados();
+    renderUsuarios();
+    showToast(`Usuário ${nomeLimpo} adicionado!`);
+  }
+}
+
+function removerUsuario(usuarioId) {
+  if (!confirm('Remover este usuário?')) return;
+  usuarios = usuarios.filter(u => u.id !== usuarioId);
+  salvarDados();
+  renderUsuarios();
+  showToast('Usuário removido!');
+}
+
+function renderUsuarios() {
+  const el = document.getElementById('usuarios-content');
+  if (usuarios.length === 0) {
+    el.innerHTML = '<div class="empty">Nenhum usuário cadastrado ainda.</div>';
+    return;
+  }
+  
+  el.innerHTML = `
+    <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">${usuarios.length} usuário(s) cadastrado(s)</div>
+    ${usuarios.map(u => `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; background:var(--card2); border-radius:8px; margin-bottom:8px; border:1px solid var(--border);">
+        <span>${escapeHtml(u.nome)}</span>
+        <button class="small-btn danger" onclick="removerUsuario('${u.id}')">Remover</button>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderUsuariosAnteriores() {
+  const el = document.getElementById('usuarios-anteriores');
+  if (usuarios.length === 0) {
+    el.innerHTML = '<div style="color:var(--muted); font-size:12px;">Nenhum usuário cadastrado ainda.</div>';
+    return;
+  }
+  
+  el.innerHTML = usuarios.map(u => `
+    <div class="user-chip" onclick="adicionarApostaRapida('${escapeHtml(u.nome)}')">
+      ${escapeHtml(u.nome)}
+    </div>
+  `).join('');
+}
+
+function adicionarApostaRapida(nome) {
+  const input = document.getElementById('ap-nome-novo-jogo');
+  if (input) {
+    input.value = nome;
+  }
+}
+
+// ===== CARREGAMENTO E SALVAMENTO DE DADOS =====
 async function loadGames(){
   if(!db){
     document.getElementById('subtitle').textContent = 'Erro: não foi possível conectar ao Supabase. Confira a URL e a chave no código.';
     games = [];
+    usuarios = [];
     render();
     return;
   }
   try{
     const { data, error } = await db
       .from('bolao_dias')
-      .select('games')
+      .select('games, usuarios')
       .eq('id', 1)
       .single();
     if(error) throw error;
     games = data && data.games ? data.games : [];
+    usuarios = data && data.usuarios ? data.usuarios : [];
   }catch(e){
     console.error(e);
     games = [];
+    usuarios = [];
     document.getElementById('subtitle').textContent = 'Erro ao carregar dados: ' + (e.message || 'verifique a conexão com o Supabase.');
   }
   render();
 }
 
-async function saveGames(){
+async function salvarDados(){
   if(!db){
     showToast('Sem conexão com o Supabase. Não foi possível salvar.');
     return;
@@ -233,7 +332,7 @@ async function saveGames(){
   try{
     const { error } = await db
       .from('bolao_dias')
-      .update({ games, updated_at: new Date().toISOString() })
+      .update({ games, usuarios, updated_at: new Date().toISOString() })
       .eq('id', 1);
     if(error) throw error;
   }catch(e){
@@ -242,6 +341,7 @@ async function saveGames(){
   }
 }
 
+// ===== UTILITÁRIOS =====
 function uid(){ return 'g' + Date.now() + Math.floor(Math.random()*1000); }
 function uidB(){ return 'b' + Date.now() + Math.floor(Math.random()*1000); }
 
@@ -251,6 +351,57 @@ function fmtDate(d){
   return `${day}/${m}/${y}`;
 }
 
+function escapeHtml(s){
+  if(!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ===== AUTOCOMPLETAR NOMES =====
+function criarAutocomplete(inputId, jogoId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  
+  let listItem = null;
+  
+  input.addEventListener('input', function() {
+    const valor = this.value.toLowerCase();
+    
+    if (!listItem) {
+      listItem = document.createElement('div');
+      listItem.className = 'autocomplete-list';
+      this.parentNode.appendChild(listItem);
+    }
+    
+    if (valor.length === 0) {
+      listItem.style.display = 'none';
+      return;
+    }
+    
+    const filtrados = usuarios.filter(u => 
+      u.nome.toLowerCase().includes(valor)
+    );
+    
+    if (filtrados.length === 0) {
+      listItem.style.display = 'none';
+      return;
+    }
+    
+    listItem.innerHTML = filtrados.map(u => `
+      <div class="autocomplete-item" onclick="document.getElementById('${inputId}').value='${escapeHtml(u.nome)}'; this.parentNode.style.display='none';">
+        ${escapeHtml(u.nome)}
+      </div>
+    `).join('');
+    listItem.style.display = 'block';
+  });
+  
+  input.addEventListener('blur', function() {
+    if (listItem) {
+      setTimeout(() => listItem.style.display = 'none', 200);
+    }
+  });
+}
+
+// ===== TABS =====
 document.querySelectorAll('.tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -258,9 +409,12 @@ document.querySelectorAll('.tab').forEach(tab=>{
     document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none');
     document.getElementById('tab-'+tab.dataset.tab).style.display='block';
     if(tab.dataset.tab === 'ranking') renderRanking();
+    if(tab.dataset.tab === 'usuarios') renderUsuarios();
+    if(tab.dataset.tab === 'novo-jogo') renderUsuariosAnteriores();
   });
 });
 
+// ===== CRIAR JOGO =====
 async function criarJogo(){
   const adversario = document.getElementById('ng-adversario').value.trim();
   const data = document.getElementById('ng-data').value;
@@ -272,13 +426,13 @@ async function criarJogo(){
   const jogo = {
     id: uid(),
     adversario, data, fase,
-    status: 'pendente', // pendente | encerrado
+    status: 'pendente',
     placarBrasil: null,
     placarAdversario: null,
     apostas: []
   };
   games.unshift(jogo);
-  await saveGames();
+  await salvarDados();
   document.getElementById('ng-adversario').value='';
   document.getElementById('ng-data').value='';
   document.getElementById('ng-fase').value='';
@@ -287,6 +441,7 @@ async function criarJogo(){
   showToast('Jogo criado!');
 }
 
+// ===== ADICIONAR APOSTA =====
 async function adicionarAposta(jogoId){
   const nome = document.getElementById('ap-nome-'+jogoId).value.trim();
   const golBR = document.getElementById('ap-golbr-'+jogoId).value;
@@ -296,6 +451,16 @@ async function adicionarAposta(jogoId){
     showToast('Preencha nome e placar apostado');
     return;
   }
+  
+  // Adicionar usuário se não existir
+  if (!usuarios.find(u => u.nome.toLowerCase() === nome.toLowerCase())) {
+    usuarios.push({
+      id: 'u' + Date.now(),
+      nome: nome,
+      dataCriacao: new Date().toISOString()
+    });
+  }
+  
   const jogo = games.find(g=>g.id===jogoId);
   jogo.apostas.push({
     id: uidB(),
@@ -305,30 +470,31 @@ async function adicionarAposta(jogoId){
     valor: valor ? parseFloat(valor) : 0,
     pago: false
   });
-  await saveGames();
+  await salvarDados();
   render();
   showModal('🍀', 'Aposta feita!', `Boa sorte, ${nome}!`);
 }
 
+// ===== OUTRAS FUNÇÕES =====
 async function togglePago(jogoId, apostaId){
   const jogo = games.find(g=>g.id===jogoId);
   const ap = jogo.apostas.find(a=>a.id===apostaId);
   ap.pago = !ap.pago;
-  await saveGames();
+  await salvarDados();
   render();
 }
 
 async function removerAposta(jogoId, apostaId){
   const jogo = games.find(g=>g.id===jogoId);
   jogo.apostas = jogo.apostas.filter(a=>a.id!==apostaId);
-  await saveGames();
+  await salvarDados();
   render();
 }
 
 async function removerJogo(jogoId){
   if(!confirm('Remover este jogo e todas as apostas dele?')) return;
   games = games.filter(g=>g.id!==jogoId);
-  await saveGames();
+  await salvarDados();
   render();
 }
 
@@ -343,7 +509,7 @@ async function encerrarJogo(jogoId){
   jogo.placarBrasil = parseInt(golBR);
   jogo.placarAdversario = parseInt(golADV);
   jogo.status = 'encerrado';
-  await saveGames();
+  await salvarDados();
   render();
 
   const vencedores = jogo.apostas.filter(a=>acertou(a,jogo));
@@ -355,14 +521,14 @@ async function encerrarJogo(jogoId){
     showModal('🏆', 'Parabéns!', `${vencedores[0].nome} acertou o placar e leva o prêmio de R$ ${totalPremio.toFixed(2)}!`);
   } else {
     const porPessoa = totalPremio / vencedores.length;
-    showModal('🏆', 'Temos vencedores!', `${vencedores.map(v=>v.nome).join(', ')} acertaram o placar! Prêmio de R$ ${totalPremio.toFixed(2)} dividido entre ${vencedores.length}: R$ ${porPessoa.toFixed(2)} cada.`);
+    showModal('🏆', 'Temos vencedores!', `${vencedores.map(v=>v.nome).join(', ')} acertaram o placar! Prêmio de R$ ${totalPremio.toFixed(2)} dividido entre ${vencedores.length}: R$ ${porPessoa.toFixed(2)}`);
   }
 }
 
 async function reabrirJogo(jogoId){
   const jogo = games.find(g=>g.id===jogoId);
   jogo.status = 'pendente';
-  await saveGames();
+  await salvarDados();
   render();
 }
 
@@ -370,6 +536,7 @@ function acertou(aposta, jogo){
   return aposta.golBR === jogo.placarBrasil && aposta.golADV === jogo.placarAdversario;
 }
 
+// ===== RENDERIZAÇÃO =====
 function render(){
   document.getElementById('subtitle').textContent =
     games.length ? `${games.length} jogo(s) cadastrado(s)` : 'Cadastre o primeiro jogo do Brasil para começar';
@@ -415,7 +582,7 @@ function render(){
         premioHtml = `🎯 Acertou o placar: <strong>${escapeHtml(vencedores[0].nome)}</strong> — leva o prêmio de R$ ${totalPremio.toFixed(2)}.`;
       } else {
         const porPessoa = totalPremio / vencedores.length;
-        premioHtml = `🎯 Acertaram o placar: <strong>${vencedores.map(v=>escapeHtml(v.nome)).join(', ')}</strong>. Prêmio de R$ ${totalPremio.toFixed(2)} dividido em ${vencedores.length}: <strong>R$ ${porPessoa.toFixed(2)} cada</strong>.`;
+        premioHtml = `🎯 Acertaram o placar: <strong>${vencedores.map(v=>escapeHtml(v.nome)).join(', ')}</strong>. Prêmio de R$ ${totalPremio.toFixed(2)} dividido em ${vencedores.length}: R$ ${porPessoa.toFixed(2)}`;
       }
       resultadoBlock = `
         <div class="card" style="margin-top:10px; background:var(--card2);">
@@ -469,7 +636,12 @@ function render(){
         <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
           <strong style="font-size:13px;">Adicionar aposta</strong>
           <div class="row" style="margin-top:6px;">
-            <div><label>Nome</label><input id="ap-nome-${jogo.id}" placeholder="Quem está apostando"></div>
+            <div>
+              <label>Nome</label>
+              <div class="input-wrapper">
+                <input id="ap-nome-${jogo.id}" placeholder="Quem está apostando">
+              </div>
+            </div>
           </div>
           <div class="row">
             <div><label>Gols Brasil</label><input type="number" min="0" id="ap-golbr-${jogo.id}"></div>
@@ -483,6 +655,13 @@ function render(){
       </div>
     `;
   }).join('');
+  
+  // Ativar autocompletar para todos os inputs
+  setTimeout(() => {
+    games.forEach(jogo => {
+      criarAutocomplete('ap-nome-'+jogo.id, jogo.id);
+    });
+  }, 100);
 }
 
 function renderRanking(){
@@ -519,11 +698,6 @@ function renderRanking(){
       `;
     }).join('')}
   `;
-}
-
-function escapeHtml(s){
-  if(!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 loadGames();
