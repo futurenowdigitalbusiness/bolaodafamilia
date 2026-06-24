@@ -301,11 +301,8 @@ function adicionarApostaRapida(nome) {
 // ===== CARREGAMENTO E SALVAMENTO DE DADOS =====
 async function loadGames(){
   if(!db){
-    document.getElementById('subtitle').textContent = 'Erro: não foi possível conectar ao Supabase. Confira a URL e a chave no código.';
-    games = [];
-    usuarios = [];
-    render();
-    return;
+    document.getElementById('subtitle').textContent = 'Erro: não foi possível conectar ao Supabase.';
+    games = []; usuarios = []; render(); return;
   }
   try{
     const { data, error } = await db
@@ -313,32 +310,29 @@ async function loadGames(){
       .select('games, usuarios')
       .eq('id', 1)
       .single();
-    if(error) throw error;
-    games = data && data.games ? data.games : [];
-    usuarios = data && data.usuarios ? data.usuarios : [];
+    // PGRST116 = nenhuma linha encontrada — banco vazio, não é erro
+    if(error && error.code !== 'PGRST116') throw error;
+    games    = data?.games    ?? [];
+    usuarios = data?.usuarios ?? [];
   }catch(e){
-    console.error(e);
-    games = [];
-    usuarios = [];
-    document.getElementById('subtitle').textContent = 'Erro ao carregar dados: ' + (e.message || 'verifique a conexão com o Supabase.');
+    console.error('loadGames:', e);
+    games = []; usuarios = [];
+    document.getElementById('subtitle').textContent =
+      'Erro ao carregar: ' + (e.message || e.code || 'verifique o Supabase');
   }
   render();
 }
 
 async function salvarDados(){
-  if(!db){
-    showToast('Sem conexão com o Supabase. Não foi possível salvar.');
-    return;
-  }
+  if(!db){ showToast('Sem conexão com o Supabase.'); return; }
   try{
     const { error } = await db
       .from('bolao_dias')
-      .update({ games, usuarios, updated_at: new Date().toISOString() })
-      .eq('id', 1);
+      .upsert({ id: 1, games, usuarios, updated_at: new Date().toISOString() });
     if(error) throw error;
   }catch(e){
-    console.error(e);
-    showToast('Erro ao salvar. Tente de novo.');
+    console.error('salvarDados:', e);
+    showToast('Erro ao salvar: ' + (e.message || e.code));
   }
 }
 
