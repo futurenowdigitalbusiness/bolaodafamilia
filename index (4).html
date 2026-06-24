@@ -100,6 +100,7 @@
   .modal-title{font-size:17px; font-weight:700; margin-bottom:6px;}
   .modal-text{font-size:14px; color:var(--muted); margin-bottom:18px; line-height:1.5;}
   .modal-box button{width:100%; margin-top:0;}
+  .modal-meme{width:100%; max-height:200px; object-fit:contain; border-radius:10px; margin-bottom:14px; display:none;}
   .users-list{
     display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;
   }
@@ -196,6 +197,7 @@
     <div class="modal-emoji" id="modal-emoji">🎉</div>
     <div class="modal-title" id="modal-title"></div>
     <div class="modal-text" id="modal-text"></div>
+    <img class="modal-meme" id="modal-meme" src="" alt="meme">
     <button onclick="closeModal()">Fechar</button>
   </div>
 </div>
@@ -224,15 +226,33 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'), 1800);
 }
 
-function showModal(emoji, title, text){
+function showModal(emoji, title, text, memeUrl){
   document.getElementById('modal-emoji').textContent = emoji;
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-text').textContent = text;
+  const img = document.getElementById('modal-meme');
+  if(memeUrl){ img.src = memeUrl; img.style.display = 'block'; }
+  else { img.src = ''; img.style.display = 'none'; }
   document.getElementById('modal-overlay').classList.add('show');
 }
 
 function closeModal(){
   document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function getUsuario(nome){
+  return usuarios.find(u => u.nome.toLowerCase() === nome?.toLowerCase());
+}
+
+function getNomeExibicao(nome){
+  const u = getUsuario(nome);
+  if(!u) return nome;
+  if(u.apelido && u.nome) return `${u.nome} (${u.apelido})`;
+  return u.apelido || u.nome;
+}
+
+function getMeme(nome){
+  return getUsuario(nome)?.memeUrl || null;
 }
 
 // ===== GERENCIAMENTO DE USUÁRIOS =====
@@ -265,16 +285,34 @@ function renderUsuarios() {
     el.innerHTML = '<div class="empty">Nenhum usuário cadastrado ainda.</div>';
     return;
   }
-  
+
   el.innerHTML = `
     <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">${usuarios.length} usuário(s) cadastrado(s)</div>
     ${usuarios.map(u => `
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px; background:var(--card2); border-radius:8px; margin-bottom:8px; border:1px solid var(--border);">
-        <span>${escapeHtml(u.nome)}</span>
-        <button class="small-btn danger" onclick="removerUsuario('${u.id}')">Remover</button>
+      <div style="background:var(--card2); border-radius:8px; margin-bottom:10px; border:1px solid var(--border); padding:12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+          <strong>${escapeHtml(u.nome)}</strong>
+          <button class="small-btn danger" onclick="removerUsuario('${u.id}')">Remover</button>
+        </div>
+        ${u.memeUrl ? `<img src="${escapeHtml(u.memeUrl)}" style="width:100%; max-height:120px; object-fit:contain; border-radius:8px; margin-bottom:8px;">` : ''}
+        <label style="margin-top:0;">Apelido / meme</label>
+        <input id="apelido-${u.id}" value="${escapeHtml(u.apelido||'')}" placeholder="Ex: Advogada do Lula">
+        <label>URL da imagem do meme (opcional)</label>
+        <input id="meme-${u.id}" value="${escapeHtml(u.memeUrl||'')}" placeholder="https://...">
+        <button class="small-btn secondary" style="margin-top:8px;" onclick="salvarApelido('${u.id}')">Salvar</button>
       </div>
     `).join('')}
   `;
+}
+
+async function salvarApelido(usuarioId){
+  const u = usuarios.find(x => x.id === usuarioId);
+  if(!u) return;
+  u.apelido  = document.getElementById('apelido-' + usuarioId).value.trim();
+  u.memeUrl  = document.getElementById('meme-'    + usuarioId).value.trim();
+  await salvarDados();
+  renderUsuarios();
+  showToast('Apelido salvo!');
 }
 
 function renderUsuariosAnteriores() {
@@ -484,7 +522,7 @@ async function adicionarAposta(jogoId){
   });
   await salvarDados();
   render();
-  showModal('🍀', 'Aposta feita!', `Boa sorte, ${nome}!`);
+  showModal('🍀', 'Aposta feita!', `Boa sorte, ${getNomeExibicao(nome)}!`, getMeme(nome));
 }
 
 // ===== OUTRAS FUNÇÕES =====
@@ -531,10 +569,11 @@ async function encerrarJogo(jogoId){
   if(vencedores.length === 0){
     showModal('🥪', 'Ninguém acertou!', `Esse jogo ficou pro lanche do Lennon. Total: R$ ${totalPremio.toFixed(2)}.`);
   } else if(vencedores.length === 1){
-    showModal('🏆', 'Parabéns!', `${vencedores[0].nome} acertou o placar e leva o prêmio de R$ ${totalPremio.toFixed(2)}!`);
+    const v = vencedores[0];
+    showModal('🏆', 'Parabéns!', `${getNomeExibicao(v.nome)} acertou o placar e leva o prêmio de R$ ${totalPremio.toFixed(2)}!`, getMeme(v.nome));
   } else {
     const porPessoa = totalPremio / vencedores.length;
-    showModal('🏆', 'Temos vencedores!', `${vencedores.map(v=>v.nome).join(', ')} acertaram o placar! Prêmio de R$ ${totalPremio.toFixed(2)} dividido entre ${vencedores.length}: R$ ${porPessoa.toFixed(2)}`);
+    showModal('🏆', 'Temos vencedores!', `${vencedores.map(v=>getNomeExibicao(v.nome)).join(', ')} acertaram o placar! Prêmio de R$ ${totalPremio.toFixed(2)} dividido entre ${vencedores.length}: R$ ${porPessoa.toFixed(2)}`);
   }
 }
 
